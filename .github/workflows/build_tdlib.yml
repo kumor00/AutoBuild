@@ -1,0 +1,63 @@
+name: 构建TDLib C库
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: '选择一个目标项目的Commit, branch 或 tag来构建'
+        required: false
+        default: ''
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform:
+          - arch: x86
+            target: Win32
+
+    steps:
+      - if: ${{ github.event.inputs.commit == 'main' || github.event.inputs.commit == '' }}
+        run: |
+          echo "release_name=tdlib-main-windows-${{ matrix.platform.arch }}" >> $env:GITHUB_ENV
+          echo "release_version=main" >> $env:GITHUB_ENV
+      - if: ${{ github.event.inputs.commit != 'main' && github.event.inputs.commit != '' }}
+        run: |
+          echo "release_name=tdlib-${{ github.event.inputs.commit }}-windows-${{ matrix.platform.arch }}" >> $env:GITHUB_ENV
+          echo "release_version=${{ github.event.inputs.commit }}" >> $env:GITHUB_ENV
+      - name: Get current date
+        id: date
+        run: |
+          echo "::set-output name=today::$(date +'%Y-%m-%d')"
+      - name: Install packages
+        run: |
+          vcpkg install gperf:${{ matrix.platform.arch }}-windows openssl:${{ matrix.platform.arch }}-windows zlib:${{ matrix.platform.arch }}-windows
+      - name: Clone TDLib
+        uses: actions/checkout@v3
+        with: 
+          repository: tdlib/td
+          ref: ${{ github.event.inputs.commit }}
+      - name: Build For Windows C (through JSON interface)
+        shell: pwsh
+        run: |
+          Remove-Item build -Force -Recurse -ErrorAction SilentlyContinue
+          Remove-Item tdlib -Force -Recurse -ErrorAction SilentlyContinue
+          mkdir build
+          cd build
+          cmake -A ${{ matrix.platform.target }} -DCMAKE_INSTALL_PREFIX:PATH=../tdlib -DCMAKE_TOOLCHAIN_FILE:FILEPATH=C:/vcpkg/scripts/buildsystems/vcpkg.cmake ..
+          cmake --build . --target install --config Release
+          copy Release\tg_cli.exe ..\tdlib\bin
+          cd ..
+          Compress-Archive $(Resolve-Path tdlib/*) ${{ env.release_name }}-for-C.zip
+
+      - name: Upload
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "${{ env.release_name }}*.zip"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: TDLib-${{ env.release_version }} # 版本的可选名称。如果省略，将使用标签。
+          tag: TDLib-main
+          draft: false  # 可选择将此版本标记为草稿版本。 设置为 true 以启用。
+          allowUpdates: true
+          replacesArtifacts: true
+          body: "TDLib自动化构建发布包"

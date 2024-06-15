@@ -1,0 +1,52 @@
+name: 构建openssl
+# 目标仓库 https://github.com/openssl/openssl
+# https://github.com/mobi-com/openssl-autobuild
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: '选择一个目标项目的Commit, branch 或 tag来构建'
+        required: false
+        default: 'master'
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86]
+        index: [0, 1, 2, 3]
+        options: [dll]
+
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup nasm
+        uses: ilammy/setup-nasm@v1
+
+      - name: Setup Visual Studio
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{matrix.arch}}
+      - name: Get current date
+        id: date
+        run: |
+          echo "::set-output name=today::$(date +'%Y-%m-%d')"
+      - name: Build
+        run: .scripts/build_openssl.ps1 ${{matrix.index}} ${{matrix.options}}
+
+      - name: Upload
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "${{ github.workspace }}/*.zip"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: openssl-all # 版本的可选名称。 如果省略，将使用标签。
+          tag: openssl-master
+          draft: false  # 可选择将此版本标记为草稿版本。 设置为 true 以启用。
+          allowUpdates: true
+          replacesArtifacts: true
+          body: "openssl自动化构建发布包"
+      

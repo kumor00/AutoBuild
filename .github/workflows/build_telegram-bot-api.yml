@@ -1,0 +1,64 @@
+name: 构建telegram-bot-api C库(手动)
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: '选择一个目标项目的Commit, branch 或 tag来构建'
+        required: false
+        default: ''
+
+jobs:
+  build_windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform:
+          - arch: x64
+            target: Win64
+
+    steps:
+      - if: ${{ github.event.inputs.commit == 'master' || github.event.inputs.commit == '' }}
+        run: |
+          echo "release_name=tg-bot-api-main-windows-${{ matrix.platform.arch }}" >> $env:GITHUB_ENV
+          echo "release_version=master" >> $env:GITHUB_ENV
+      - if: ${{ github.event.inputs.commit != 'master' && github.event.inputs.commit != '' }}
+        run: |
+          echo "release_name=tg-bot-api-${{ github.event.inputs.commit }}-windows-${{ matrix.platform.arch }}" >> $env:GITHUB_ENV
+          echo "release_version=${{ github.event.inputs.commit }}" >> $env:GITHUB_ENV
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Checkout telegram-bot-api
+        uses: actions/checkout@v4
+        with:
+          repository: tdlib/telegram-bot-api
+          ref: ${{ github.event.inputs.commit }}
+          path: telegram-bot-api
+          fetch-depth: 0
+          submodules: true
+      
+      - name: Environment
+        run: |
+          git clone https://github.com/Microsoft/vcpkg.git
+          cd vcpkg
+          ./bootstrap-vcpkg.bat
+          ./vcpkg.exe install gperf:${{ matrix.platform.arch }}-windows openssl:${{ matrix.platform.arch }}-windows zlib:${{ matrix.platform.arch }}-windows
+          Remove-Item build -Force -Recurse -ErrorAction SilentlyContinue
+
+      - name: Build
+        run: |
+          cd telegram-bot-api
+          mkdir build
+          cd build
+          cmake -A ${{ matrix.platform.arch }} -DCMAKE_INSTALL_PREFIX:PATH=.. -DCMAKE_TOOLCHAIN_FILE:FILEPATH=../vcpkg/scripts/buildsystems/vcpkg.cmake ..
+          cmake --build . --target install --config Release
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.release_name }}
+          path: telegram-bot-api/bin/*

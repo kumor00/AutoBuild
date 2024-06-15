@@ -1,0 +1,46 @@
+name: 构建TDLib C库(修改版)
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: '要构建的分支名称（如果未提供，默认为 my-td 分支）'
+        required: false
+        default: 'my-td'
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform:
+          - arch: x86
+            target: Win32
+
+    steps:
+      - name: Install packages
+        run: |
+          vcpkg install gperf:${{ matrix.platform.arch }}-windows openssl:${{ matrix.platform.arch }}-windows zlib:${{ matrix.platform.arch }}-windows
+      - name: Clone TDLib
+        uses: actions/checkout@v4
+        with: 
+          repository: kumor00/fork-td
+          ref: ${{ github.event.inputs.commit }}
+      - name: Build For Windows C (through JSON interface)
+        shell: pwsh
+        run: |
+          Remove-Item build -Force -Recurse -ErrorAction SilentlyContinue
+          Remove-Item tdlib -Force -Recurse -ErrorAction SilentlyContinue
+          mkdir build
+          cd build
+          cmake -A ${{ matrix.platform.target }} -DCMAKE_INSTALL_PREFIX:PATH=../tdlib -DCMAKE_TOOLCHAIN_FILE:FILEPATH=C:/vcpkg/scripts/buildsystems/vcpkg.cmake ..
+          cmake --build . --target install --config Release
+          copy Release\tg_cli.exe ..\tdlib\bin
+          cd ..
+          Compress-Archive $(Resolve-Path tdlib/*) tdlib-for-C.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.commit }}-for-C
+          path: tdlib/*

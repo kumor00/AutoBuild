@@ -1,0 +1,63 @@
+name: 构建secp256k1
+# 目标仓库 https://github.com/bitcoin-core/secp256k1
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: '选择一个目标项目的Commit, branch 或 tag来构建'
+        required: false
+        default: 'master'
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        platform:
+          - arch: x86
+            target: Win32
+
+    steps:
+      - if: ${{ github.event.inputs.commit == 'master' || github.event.inputs.commit == 'main' || github.event.inputs.commit == '' }}
+        run: |
+          echo "release_name=main-windows-${{ matrix.platform.arch }}" >> $env:GITHUB_ENV
+          echo "release_version=main" >> $env:GITHUB_ENV
+      - if: ${{ github.event.inputs.commit != 'main' && github.event.inputs.commit != ''  && github.event.inputs.commit != 'master' }}
+        run: |
+          echo "release_name=${{ github.event.inputs.commit }}-windows-${{ matrix.platform.arch }}" >> $env:GITHUB_ENV
+          echo "release_version=${{ github.event.inputs.commit }}" >> $env:GITHUB_ENV
+      - name: Get current date
+        id: date
+        run: |
+          echo "::set-output name=today::$(date +'%Y-%m-%d')"
+      - name: Clone secp256k1
+        uses: actions/checkout@v3
+        with: 
+          repository: bitcoin-core/secp256k1
+          ref: ${{ github.event.inputs.commit }}
+      - name: Build For Windows C
+        shell: pwsh
+        run: |
+          cmake -G "Visual Studio 17 2022" -A Win32 -S . -B build -DSECP256K1_ENABLE_MODULE_RECOVERY=ON -DSECP256K1_BUILD_EXAMPLES=ON
+          cmake --build build --config MinSizeRel
+          Compress-Archive $(Resolve-Path build/src/MinSizeRel/*) ${{ env.release_name }}.zip
+      # - name: Upload artifact to release
+      #   uses: svenstaro/upload-release-action@v2
+      #   with:
+      #     repo_token: ${{ secrets.GITHUB_TOKEN }}
+      #     tag: secp256k1-${{ env.release_version }}-${{ steps.date.outputs.today }}
+      #     file: ${{ env.release_name }}*.zip
+      #     overwrite: true
+      #     file_glob: true
+
+      - name: Upload
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "${{ env.release_name }}*.zip"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: secp256k1-${{ env.release_version }} # 版本的可选名称。 如果省略，将使用标签。
+          tag: vsecp256k1-${{ env.release_version }}
+          draft: false  # 可选择将此版本标记为草稿版本。 设置为 true 以启用。
+          allowUpdates: true
+          replacesArtifacts: true
+          body: "secp256k1自动化构建发布包"
