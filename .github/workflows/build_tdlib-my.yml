@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       commit:
-        description: '要构建的分支名称（如果未提供，默认为 my-td 分支）'
+        description: '要构建的分支名称（如果未提供，默认为 master 分支）'
         required: false
-        default: 'my-td'
+        default: 'master'
 
 jobs:
   windows:
