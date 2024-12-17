@@ -6,7 +6,7 @@ on:
       commit:
         description: '选择一个目标项目的Commit, branch 或 tag来构建'
         required: false
-        default: 'dev'
+        default: 'master'
 
 jobs:
   build-win32:
@@ -38,13 +38,13 @@ jobs:
           repository: Cyan4973/xxHash
           ref: ${{ github.event.inputs.commit }}
 
-      # 构建 xxHash 为 Win32 动态库
+      # 构建 xxHash 为 Win32 动态库 (使用 cmake_unofficial)
       - name: Build xxHash for Win32
         shell: pwsh
         run: |
           mkdir build
           cd build
-          cmake -G "Visual Studio 17 2022" -A ${{ matrix.platform.target }} -DBUILD_SHARED_LIBS=ON -DXXHASH_BUILD_XXHSUM=OFF -DXXHASH_BUILD_ENABLE_INLINE_API=ON ..
+          cmake -G "Visual Studio 17 2022" -A ${{ matrix.platform.target }} -DBUILD_SHARED_LIBS=ON -DXXHASH_BUILD_XXHSUM=OFF -DXXHASH_BUILD_ENABLE_INLINE_API=ON ../cmake_unofficial
           cmake --build . --config Release
 
       # 压缩整个 Release 目录
