@@ -6,7 +6,7 @@ on:
       commit:
         description: '选择一个目标项目的Commit, branch 或 tag来构建'
         required: false
-        default: 'master'
+        default: 'dev'
 
 jobs:
   build-win32:
