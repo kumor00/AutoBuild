@@ -18,19 +18,6 @@ jobs:
             target: Win32
 
     steps:
-      # 设置版本名称和版本标签
-      - name: Set Release Name and Version
-        if: ${{ github.event.inputs.commit == 'master' || github.event.inputs.commit == 'main' || github.event.inputs.commit == '' }}
-        run: |
-          echo "release_name=xxhash-main-windows-${{ matrix.platform.arch }}" >> $env:GITHUB_ENV
-          echo "release_version=main" >> $env:GITHUB_ENV
-
-      - name: Set Release Name and Version (Custom Commit)
-        if: ${{ github.event.inputs.commit != 'master' && github.event.inputs.commit != 'main' && github.event.inputs.commit != '' }}
-        run: |
-          echo "release_name=xxhash-${{ github.event.inputs.commit }}-windows-${{ matrix.platform.arch }}" >> $env:GITHUB_ENV
-          echo "release_version=${{ github.event.inputs.commit }}" >> $env:GITHUB_ENV
-
       # 克隆 xxHash 仓库
       - name: Clone xxHash
         uses: actions/checkout@v3
@@ -51,11 +38,11 @@ jobs:
       - name: Compress Release Directory
         shell: pwsh
         run: |
-          Compress-Archive -Path build/Release/* -DestinationPath "${{ env.release_name }}.zip"
+          Compress-Archive -Path build/Release/* -DestinationPath "xxHash-Win32.zip"
 
       # 上传压缩后的 Release 目录
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.event.inputs.commit }}-for-C
+          name: xxHash-Win32
           path: build/Release/*
