@@ -1,0 +1,61 @@
+name: 构建xxHash Win32动态库
+# 目标仓库：https://github.com/Cyan4973/xxHash/
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: '选择一个目标项目的Commit, branch 或 tag来构建'
+        required: false
+        default: 'master'
+
+jobs:
+  build-win32:
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        platform:
+          - arch: x86
+            target: Win32
+
+    steps:
+      # 设置版本名称和版本标签
+      - name: Set Release Name and Version
+        if: ${{ github.event.inputs.commit == 'master' || github.event.inputs.commit == 'main' || github.event.inputs.commit == '' }}
+        run: |
+          echo "release_name=xxhash-main-windows-${{ matrix.platform.arch }}" >> $env:GITHUB_ENV
+          echo "release_version=main" >> $env:GITHUB_ENV
+
+      - name: Set Release Name and Version (Custom Commit)
+        if: ${{ github.event.inputs.commit != 'master' && github.event.inputs.commit != 'main' && github.event.inputs.commit != '' }}
+        run: |
+          echo "release_name=xxhash-${{ github.event.inputs.commit }}-windows-${{ matrix.platform.arch }}" >> $env:GITHUB_ENV
+          echo "release_version=${{ github.event.inputs.commit }}" >> $env:GITHUB_ENV
+
+      # 克隆 xxHash 仓库
+      - name: Clone xxHash
+        uses: actions/checkout@v3
+        with: 
+          repository: Cyan4973/xxHash
+          ref: ${{ github.event.inputs.commit }}
+
+      # 构建 xxHash 为 Win32 动态库
+      - name: Build xxHash for Win32
+        shell: pwsh
+        run: |
+          mkdir build
+          cd build
+          cmake -G "Visual Studio 17 2022" -A ${{ matrix.platform.target }} -DBUILD_SHARED_LIBS=ON -DXXHASH_BUILD_XXHSUM=OFF -DXXHASH_BUILD_ENABLE_INLINE_API=ON ..
+          cmake --build . --config Release
+
+      # 压缩整个 Release 目录
+      - name: Compress Release Directory
+        shell: pwsh
+        run: |
+          Compress-Archive -Path build/Release/* -DestinationPath "${{ env.release_name }}.zip"
+
+      # 上传压缩后的 Release 目录
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.commit }}-for-C
+          path: build/Release/*
