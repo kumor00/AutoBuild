@@ -1,0 +1,70 @@
+name: 构建Brotli Win32动态库和静态库
+# 目标仓库：https://github.com/google/brotli
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: '选择一个目标项目的 Commit, branch 或 tag 来构建'
+        required: false
+        default: 'master'
+
+jobs:
+  build-win32:
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        platform:
+          - arch: x86
+            target: Win32
+
+    steps:
+      # 克隆 Brotli 仓库
+      - name: Clone Brotli
+        uses: actions/checkout@v3
+        with:
+          repository: google/brotli
+          ref: ${{ github.event.inputs.commit }}
+
+      # 构建 Brotli 动态库
+      - name: Build Brotli Dynamic Libraries (DLL)
+        shell: pwsh
+        run: |
+          mkdir build_shared
+          cd build_shared
+          cmake -G "Visual Studio 17 2022" -A ${{ matrix.platform.target }} -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=../out_shared ..
+          cmake --build . --config Release --target install
+
+      # 构建 Brotli 静态库
+      - name: Build Brotli Static Libraries (LIB)
+        shell: pwsh
+        run: |
+          mkdir build_static
+          cd build_static
+          cmake -G "Visual Studio 17 2022" -A ${{ matrix.platform.target }} -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=../out_static ..
+          cmake --build . --config Release --target install
+
+      # 压缩动态库目录
+      - name: Compress Dynamic Libraries
+        shell: pwsh
+        run: |
+          Compress-Archive -Path ../out_shared/* -DestinationPath "Brotli-Dynamic-Win32.zip"
+
+      # 压缩静态库目录
+      - name: Compress Static Libraries
+        shell: pwsh
+        run: |
+          Compress-Archive -Path ../out_static/* -DestinationPath "Brotli-Static-Win32.zip"
+
+      # 上传动态库压缩包
+      - name: Upload Dynamic Libraries
+        uses: actions/upload-artifact@v4
+        with:
+          name: Brotli-Dynamic-Win32
+          path: Brotli-Dynamic-Win32.zip
+
+      # 上传静态库压缩包
+      - name: Upload Static Libraries
+        uses: actions/upload-artifact@v4
+        with:
+          name: Brotli-Static-Win32
+          path: Brotli-Static-Win32.zip
