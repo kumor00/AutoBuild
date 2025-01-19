@@ -46,7 +46,7 @@ jobs:
       - name: Compress Entire Project Directory
         shell: pwsh
         run: |
-          Compress-Archive -Path "$(System.DefaultWorkingDirectory)/*" -DestinationPath "Brotli-Project-Win32.zip"
+          Compress-Archive -Path * -DestinationPath "Brotli-Project-Win32.zip"
 
       # 上传压缩包
       - name: Upload Project Archive
