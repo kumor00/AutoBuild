@@ -1,5 +1,4 @@
 name: 构建Brotli Win32动态库和静态库
-# 目标仓库：https://github.com/google/brotli
 on:
   workflow_dispatch:
     inputs:
@@ -43,28 +42,15 @@ jobs:
           cmake -G "Visual Studio 17 2022" -A ${{ matrix.platform.target }} -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=../out_static ..
           cmake --build . --config Release --target install
 
-      # 压缩动态库目录
-      - name: Compress Dynamic Libraries
+      # 压缩整个项目目录
+      - name: Compress Entire Project Directory
         shell: pwsh
         run: |
-          Compress-Archive -Path ../out_shared/* -DestinationPath "Brotli-Dynamic-Win32.zip"
+          Compress-Archive -Path "$(System.DefaultWorkingDirectory)/*" -DestinationPath "Brotli-Project-Win32.zip"
 
-      # 压缩静态库目录
-      - name: Compress Static Libraries
-        shell: pwsh
-        run: |
-          Compress-Archive -Path ../out_static/* -DestinationPath "Brotli-Static-Win32.zip"
-
-      # 上传动态库压缩包
-      - name: Upload Dynamic Libraries
+      # 上传压缩包
+      - name: Upload Project Archive
         uses: actions/upload-artifact@v4
         with:
-          name: Brotli-Dynamic-Win32
-          path: Brotli-Dynamic-Win32.zip
-
-      # 上传静态库压缩包
-      - name: Upload Static Libraries
-        uses: actions/upload-artifact@v4
-        with:
-          name: Brotli-Static-Win32
-          path: Brotli-Static-Win32.zip
+          name: Brotli-Project-Win32
+          path: Brotli-Project-Win32.zip
